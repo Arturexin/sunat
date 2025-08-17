@@ -1,0 +1,109 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: var(--color-primario);
+  background-color: var(--fondo-secundario);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --fondo-primario : #2d3238;
+  --fondo-secundario : #242424;
+  --fondo-terciario : #364652;
+  --fondo-cuaternario : #38bdf8;
+  --fondo-a-input: #474b50;
+  --color-primario : #eee;
+  --color-secundario : #ff9900;
+  --a-uno : #a054bb;
+  --b-uno : #724383;
+  --c-uno : #b463d1;
+  --d-uno : #b463d163;
+  --a-dos : #33913d;
+  --b-dos : #23662B;
+  --c-dos : #43C652;
+  --d-dos : #43c6525b;
+  --a-tres : #0067D4;
+  --b-tres : #3f6194;
+  --c-tres : #007bff;
+  --d-tres : #007bff50;
+  --a-cuatro : #b15757;
+  --b-cuatro : #754040;
+  --c-cuatro : #E36F6F;
+  --d-cuatro : #e36f6f57;
+  --a-cinco : #6b6b6b;
+  --b-cinco : #504c4c;
+  --c-cinco : #858282;
+  --d-cinco : #6b6b6b59;
+  --a-seis : #ff9900;      /* color base */
+  --b-seis : #cc7a00;      /* más oscuro */
+  --c-seis : #ffb84d;      /* más claro */
+  --d-seis : #ff990066;    /* translúcido */
+
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  justify-content: center;
+}
+
+.cuerpo{
+  display: grid; 
+  justify-items: center;
+}
+.content {
+  background: var(--fondo-terciario);
+  width: 100%;
+}
+.container {
+    display: grid;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    justify-items: center;
+}
+.container_into {
+  display: flex;
+  background: var(--fondo-primario);
+  width: 1200px;
+  margin: 1rem;
+  padding: 1rem;
+  border-radius: 10px;
+  font-family: sans-serif;
+}
+
+.input_text {
+  width: 300px;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  background-color: var(--fondo-a-input);
+  color: var(--color-primario);
+}
+.input_text:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--fondo-cuaternario);
+}
+.select {
+  width: 250px;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+  background-color: var(--fondo-a-input);
+  color: var(--color-primario);
+}

@@ -1,0 +1,83 @@
+
+services:
+  redis-service:
+    image: redis:7-alpine
+    container_name: redis-service
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: always
+  
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Luter123.$-
+      MYSQL_DATABASE: c_p_sunat
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+
+  scraper-service:
+    build:
+      context: ./service  # Ruta donde está tu Dockerfile y main.py
+    container_name: scraper-service
+    ports:
+      - "8000:8000"
+    environment:
+      - DISPLAY=:99
+    volumes:
+      - ./service:/app
+    depends_on:
+      - redis-service
+    networks:
+      - app-network
+    restart: unless-stopped
+  
+  backend-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-service
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis-service
+      - scraper-service
+    environment:
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: Luter123.$-
+      DB_NAME: c_p_sunat
+      SAL_ROUNDS: 10
+      SECRET_JWT_KEY: esta-es-la-clave-secreta-del-token-lo-mas-grande-posible
+      REDIS_HOST: redis-service
+      REDIS_PORT: 6379
+      KEY_REDIS_EXPIRY: 43200
+      ACCESS_TOKEN_EXPIRY: 900
+      REFRESH_TOKEN_EXPIRY: 604800
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  redis_data:
+  mysqldata:
+
+networks:
+  app-network:
+    driver: bridge

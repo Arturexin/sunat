@@ -1,0 +1,130 @@
+.tabla-principal{
+    width: 100%;
+    border-collapse: collapse;
+    /* margin: 24px 0; */
+    background: var(--fondo-a-input);
+    overflow: hidden;
+    font-size: 12px;
+    /* border-radius: 20px; */
+    /* box-shadow: 0 2px 12px #00000033; */
+}
+.tabla-principal thead tr{
+    background: var(--fondo-primario);
+    margin: 5px 0;
+}
+.tabla-principal thead th{
+    padding: 5px 0;
+}
+.tabla-principal tbody tr:hover{
+    background: var(--fondo-terciario);
+    /* text-shadow: 0 0 8px var(--color-primario); */
+    border-top: 1px solid var(--fondo-cuaternario);
+    border-bottom: 1px solid var(--fondo-cuaternario);
+}
+.tabla-principal tbody td{
+    padding: 3px;
+}
+.tabla-principal tfoot{
+    background: var(--fondo-primario);
+}
+.tabuldor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px;
+}
+
+
+.btn-tab-edit{
+    background: var(--a-tres);
+    border: none;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px; 
+    padding: 2px 5px;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-tab-edit:hover{
+    background: var(--c-tres);
+}
+.btn-tab-edit:active {
+	position:relative;
+	top:1px;
+}
+.btn-tab-delete{
+    cursor: pointer;
+    background: var(--a-cuatro);
+    border: none;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px; 
+    padding: 2px 5px;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-tab-delete:hover{
+    background: var(--c-cuatro);
+}
+.btn-tab-delete:active {
+	position:relative;
+	top:1px;
+}
+.btn-tab-tabulador{
+    cursor: pointer;
+    background: var(--a-cuatro);
+    border: none;
+    border-radius: 3px;
+    /* border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;  */
+    padding: 4px 8px;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-tab-tabulador:hover{
+    background: var(--c-cuatro);
+}
+.btn-tab-tabulador:active {
+	position:relative;
+	top:1px;
+}
+
+
+.tabla-principal input {
+    background: var(--fondo-a-input);
+    border: 1px solid;
+    border-radius: 3px;
+    padding: 3px 5px;
+    margin-top: 5px;
+    color: var(--color-primario);
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px #00000011;
+}
+
+.tabla-principal input:focus {
+    background: var(--fondo-terciario);
+    transition: background 0.2s;
+    text-shadow: 0 0 8px var(--color-primario);
+    border: 1px solid var(--fondo-cuaternario);
+}
+.tabla-principal select {
+    background: var(--fondo-a-input);
+    border: 1px solid;
+    border-radius: 3px;
+    padding: 3px 5px;
+    margin-top: 5px;
+    color: var(--color-primario);
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px #00000011;
+}
+
+.tabla-principal select:focus {
+    background: var(--fondo-terciario);
+    transition: background 0.2s;
+    text-shadow: 0 0 8px var(--color-primario);
+    border: 1px solid var(--fondo-cuaternario);
+}

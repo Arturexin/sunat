@@ -1,0 +1,147 @@
+.btn-min-go{
+    background: var(--a-seis);
+    border: none;
+    padding: 2px 5px;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-min-go:hover{
+    background: var(--c-seis);
+}
+.btn-min-go:active {
+	position:relative;
+	top:1px;
+}
+.btn-min-edit{
+    background: var(--a-tres);
+    border: none;
+    padding: 2px 5px;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-min-edit:hover{
+    background: var(--c-tres);
+}
+.btn-min-edit:active {
+	position:relative;
+	top:1px;
+}
+.btn-min-delete{
+    cursor: pointer;
+    background: var(--a-cuatro);
+    border: none;
+    padding: 2px 5px;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-min-delete:hover{
+    background: var(--c-cuatro);
+}
+.btn-min-delete:active {
+	position:relative;
+	top:1px;
+}
+
+.btn-in {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: var(--a-dos);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-in:hover{
+    background: var(--c-dos);
+}
+.btn-in:active {
+	position:relative;
+	top:1px;
+}
+.btn-edit {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: var(--a-tres);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-edit:hover{
+    background: var(--c-tres);
+}
+.btn-edit:active {
+	position:relative;
+	top:1px;
+}
+.btn-edit-b {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: var(--a-uno);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-edit-b:hover{
+    background: var(--c-uno);
+}
+.btn-edit-b:active {
+	position:relative;
+	top:1px;
+}
+.btn-out {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: var(--a-cuatro);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-out:hover{
+    background: var(--c-cuatro);
+}
+.btn-out:active {
+	position:relative;
+	top:1px;
+}
+.btn-neutro {
+    padding: 4px;
+    background-color: var(--a-cinco);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-neutro:hover{
+    background: var(--c-cinco);
+}
+.btn-neutro:active {
+	position:relative;
+	top:1px;
+}
+.btn-next {
+    padding: 4px;
+    padding: 10px 20px;
+    background-color: var(--a-seis);
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-shadow: 0 0 8px var(--color-primario);
+    transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.btn-next:hover{
+    background: var(--c-seis);
+}
+.btn-next:active {
+	position:relative;
+	top:1px;
+}

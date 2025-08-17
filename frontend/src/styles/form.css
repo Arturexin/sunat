@@ -1,0 +1,72 @@
+.formulario-principal {
+    /* background: var(--fondo-primario);
+    border-radius: 20px;
+    box-shadow: 0 2px 12px #00000033; */
+    padding: 10px;
+    margin: 24px 0;
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    font-size: 15px;
+}
+.formulario-principal h2 {
+    color: var(--color-secundario);
+}
+.formulario-principal label {
+    /* color: var(--color-secundario); */
+    font-weight: 500;
+    margin-top: 10px;
+}
+
+.formulario-principal input {
+    background: var(--fondo-a-input);
+    border: 1px solid;
+    border-radius: 3px;
+    padding: 8px 1px;
+    margin-top: 5px;
+    color: var(--color-primario);
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px #00000011;
+}
+
+.formulario-principal input:focus {
+    background: var(--fondo-terciario);
+    transition: background 0.2s;
+    text-shadow: 0 0 8px var(--color-primario);
+    border: 1px solid var(--fondo-cuaternario);
+}
+.formulario-principal select {
+    background: var(--fondo-a-input);
+    border: 1px solid;
+    border-radius: 3px;
+    padding: 8px;
+    margin-top: 5px;
+    color: var(--color-primario);
+    font-size: 14px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px #00000011;
+}
+
+.formulario-principal select:focus {
+    background: var(--fondo-terciario);
+    transition: background 0.2s;
+    text-shadow: 0 0 8px var(--color-primario);
+    border: 1px solid var(--fondo-cuaternario);
+}
+
+.formulario-principal .form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.formulario-principal .btn-in {
+    border-radius: 3px;
+}
+
+.formulario-principal .btn-out {
+    border-radius: 3px;
+}
