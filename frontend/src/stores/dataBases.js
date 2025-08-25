@@ -13,6 +13,28 @@ export const useDB = defineStore('db', {
         db_areas_all: { data: [] },
         db_transit_all: { data: [] },
         db_location_all: { data: [] },
+
+        files: {
+            xlsx: null,
+            pdf: null
+        },
+
+        id_data: {
+            id_project: '0',
+            id_transit: '0',
+            id_location: '0',
+            id_area: '0',
+            id_employee: '0',
+        },
+        
+        object_transit: {
+            ruc: [],
+            comprobante: [],
+            duplicados: [],
+            descartados: [],
+        },
+        btn_disabled: [0, 0, 0, 0, 0, 0],
+
         isAuth: {
             state : false,
             user:{
@@ -28,6 +50,12 @@ export const useDB = defineStore('db', {
             // Asegura que siempre haya una propiedad data (array)
             this[db] = { data: Array.isArray(result.data) ? result.data : [], 
                         total: result.total ? result.total : 0 };
+        },
+        btnDisabled(position, reset) {
+            this.btn_disabled.forEach((e, i) => {
+                position === i ? this.btn_disabled[i] = 1 : this.btn_disabled[i] = 0;
+            })
+            reset === true ? this.btn_disabled[4] = 1 : this.btn_disabled[4] = 0;
         },
         isAuthLogin(data){
             this.isAuth = {

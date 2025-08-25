@@ -21,10 +21,13 @@ async def procesar_ruc(page, ruc):
     
     h4s = await page.query_selector_all("h4.list-group-item-heading")
     titulo = ""
+    rs = ""
     for h4 in h4s:
         text = await h4.inner_text()
         if "-" in text:
             titulo = text
+            partes = text.split("-", 1)
+            rs = partes[1].strip() if len(partes) > 1 else text.strip()
             print(f"RUC y Razón Social para {text}")
             break
 
@@ -35,7 +38,8 @@ async def procesar_ruc(page, ruc):
     ruc_dict = {
         "RUC": ruc,
         "ESTADO DEL CONTRIBUYENTE": ", ".join(estados),
-        "CONDICION DEL CONTRIBUYENTE": ", ".join(condiciones)
+        "CONDICION DEL CONTRIBUYENTE": ", ".join(condiciones),
+        "RAZÓN SOCIAL DE PROVEEDOR": rs
     }
     ruc_procesados.append(ruc_dict)
 
@@ -124,7 +128,8 @@ async def ejecutar_scraping(data):
         if ruc in procesados_map:
             item.update({
                 "ESTADO DEL CONTRIBUYENTE": procesados_map[ruc].get("ESTADO DEL CONTRIBUYENTE", ""),
-                "CONDICION DEL CONTRIBUYENTE": procesados_map[ruc].get("CONDICION DEL CONTRIBUYENTE", "")
+                "CONDICION DEL CONTRIBUYENTE": procesados_map[ruc].get("CONDICION DEL CONTRIBUYENTE", ""),
+                "RAZÓN SOCIAL DE PROVEEDOR": procesados_map[ruc].get("RAZÓN SOCIAL DE PROVEEDOR", "")
             })
     
     # Guardar los resultados en un nuevo archivo Excel

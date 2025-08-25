@@ -41,6 +41,20 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+
+  pdfs-service:
+    build:
+      context: ./pdfs  # Ruta donde está tu Dockerfile y app.py
+    container_name: pdfs-service
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./pdfs:/app
+    depends_on:
+      - redis-service
+    networks:
+      - app-network
+    restart: unless-stopped
   
   backend-service:
     build:
