@@ -7,6 +7,8 @@ export const expregul = {
     name: /^[A-Za-zÑñÁÉÍÓÚáéíóú'° ]{2,}$/,
     // Apellidos: solo letras y espacios, mínimo 2 caracteres
     last_name: /^[A-Za-zÑñÁÉÍÓÚáéíóú'° ]{2,}$/,
+    // Estilo redes sociales (sin números al inicio, guion bajo opcional)
+    user: /^[a-zA-Z][a-zA-Z0-9_]{2,15}$/,
     // ...otras expresiones...
     ruc: /^\d{11}$/,
     // DNI: exactamente 8 dígitos
@@ -31,6 +33,7 @@ export const expregul = {
     booleano: /^(true|false)$/,
     // Fecha y hora: formato YYYY-MM-DD HH:mm:ss
     dateHour: /^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+    role: /^$|^[1-9]\d*$/,
 };
 export class validation {
     static id(id) {
@@ -45,10 +48,16 @@ export class validation {
         if (!expregul.name.test(name)) return 'Nombre no válido.';
         return null;
     }
-    static rol(rol) {
-        rol = String(rol || '').trim().replace(/[<>"']/g, '');
-        if (!rol) return 'Nombre inexistente.';
-        if (!expregul.rol.test(rol)) return 'Puesto no válido.';
+    static user(user) {
+        user = String(user || '').trim().replace(/[<>"']/g, '');
+        if (!user) return 'Usuario inexistente.';
+        if (!expregul.user.test(user)) return 'Usuario no válido.'; ;
+        return null;
+    }
+    static role(role) {
+        role = String(role || '').trim().replace(/[<>"']/g, '');
+        if (!role) return 'Nombre inexistente.';
+        if (!expregul.role.test(role)) return 'Puesto no válido.';
         return null;
     }
     static location(location) {

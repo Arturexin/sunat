@@ -7,10 +7,13 @@ export const pool = createPool({
     password: DB_PASSWORD,
     port: DB_PORT,
     database: DB_DATABASE,
-    timezone: 'Z' // <-- fuerza a tratar todo como UTC
+    timezone: 'Z', // <-- fuerza a tratar todo como UTC
+    charset: 'utf8mb4' // asegura soporte completo de UTF-8
 });
 // Verifica conexión inmediatamente
 try {
+  // Fuerza la conexión a usar UTF-8 en la sesión
+  await pool.query('SET NAMES utf8mb4');
   const connection = await pool.getConnection();
   console.log(`✅ Conectado a MySQL en puerto ${DB_PORT}`);
   connection.release(); // Importante: liberar conexión

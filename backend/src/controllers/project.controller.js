@@ -1,10 +1,51 @@
 import  { pool } from '../mysql_db.js';
 import redisClient from '../redis_db.js';
-import { KEY_REDIS_EXPIRY } from '../config.js';
+import { KEY_REDIS_EXPIRY, ACTIVO } from '../config.js';
 import { validation } from '../util/validate.js';
 
+export const getSelectProjects = async (req, res) => {
+    const id_user = req.user.ID_USER;
+    try {
+        const [rows] = await pool.query(
+            'CALL sp_select_projects(?)',
+            [id_user]
+        );
+        res.status(200).json({
+            status: 'success',
+            message: 'Proyectos obtenidos correctamente.',
+            data: rows?.[0] ?? []
+        })
+    } catch (error) {   
+        return res.status(500).json({
+            status: 'error',
+            message: 'No se puede obtener los proyectos. | ' + error
+        })
+    }
+}
+
+export const getEmpresa = async (req, res) => {
+    const id_user = req.user.ID_USER;
+    try {
+        const [row] = await pool.query(
+            'CALL sp_list_empresa(?)',
+            [id_user]
+        )
+        res.status(200).json({
+            status: 'success',
+            message: 'Empresas obtenidas correctamente.',
+            data: row?.[0] ?? []
+        })
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            message: 'No se pueden obtener las empresas. | ' + error
+        })
+    }
+}
 export const getProjects = async (req, res) => {
-    const cacheKey = `projects:${1}`;
+    const id_user = req.user.ID_USER;
+    
+    const cacheKey = `projects:${id_user}`;
     try {
         // 1. Buscar en caché
         const cachedData = await redisClient.get(cacheKey);
@@ -16,22 +57,19 @@ export const getProjects = async (req, res) => {
             });
         }
         // 2. Si no hay cache, consulta base de datos
-        const [rows] = await pool.query(
-            'SELECT p.id, p.name, p.ruc, p.rs, p.amount, p.id_employees, p.date_start, p.date_end, e.name AS name_employee, e.last_name ' +
-            'FROM project p ' +
-            'JOIN employees e ON p.id_employees = e.id ' +
-            'WHERE p.id_user = ? AND p.state = 1 ' +
-            'ORDER BY p.id ASC',
-            [1]
-        );
+
+        const [projects] = await pool.query(
+            `CALL sp_list_projects(?, ?)`,
+            [id_user, ACTIVO]
+        )
         // 3. Guardar en Redis por 100 minutos
-        await redisClient.set(cacheKey, JSON.stringify(rows), {
+        await redisClient.set(cacheKey, JSON.stringify(projects[0]), {
             EX: KEY_REDIS_EXPIRY // 60 * 60 * 12 horas
         });
         res.status(200).json({
             status: 'success',
             message: 'Proyectos obtenidos correctamente.',
-            data: rows
+            data: projects?.[0] ?? []
         });
     } catch (error) {
         return res.status(500).json({
@@ -41,51 +79,56 @@ export const getProjects = async (req, res) => {
     };
 }
 export const createProject = async (req, res) => {
-    const { name, ruc, rs, amount, id_employees, date_start, date_end, date_record } = req.body;
-
-    //validación básica
+    const { NAME, ID_JURIDIC, AMOUNT, ID_NATURAL, DATE_START, DATE_END } = req.body;
+    const id_user = req.user.ID_USER;
+    // validación básica
     const err =
-            validation.name(name) ||
-            validation.ruc(ruc) ||
-            validation.rs(rs) ||
-            validation.price(amount) ||
-            validation.id(id_employees) ||
-            validation.dateHour(date_start) ||
-            validation.dateHour(date_end) ||
-            validation.dateHour(date_record);
+            validation.name(NAME) ||
+            validation.id(ID_JURIDIC) ||
+            validation.price(AMOUNT) ||
+            validation.id(ID_NATURAL) ||
+            validation.dateHour(DATE_START) ||
+            validation.dateHour(DATE_END);
         
     if (err) {
         return res.status(400).json({ status: 'error', message: err });
     }
-
+    const mysql = await pool.getConnection();
     try {
-        const [row] = await pool.query(
-            'INSERT INTO project ' + 
-            '(name, ruc, rs, amount, id_employees, date_start, date_end, date_record, id_user, state) ' + 
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [name, ruc, rs, amount, id_employees, date_start, date_end, date_record, 1, 1]
-        )
-        const [newProject] = await pool.query(
-            'SELECT p.id, p.name, p.ruc, p.rs, p.amount, p.id_employees, p.date_start, p.date_end, e.name AS name_employee, e.last_name ' +
-            'FROM project p ' +
-            'JOIN employees e ON p.id_employees = e.id ' +
-            'WHERE p.state = 1 AND p.id = ? AND p.id_user = ?',
-            [row.insertId, 1] // Aquí usas el id del usuario del token
-        );
+        const spSQL = 'CALL sp_create_project(?, ?, ?, ?, ?, ?, ?, ?)';
+        const spArgs = [
+            id_user,
+            NAME,
+            ID_JURIDIC,
+            AMOUNT,
+            ID_NATURAL,
+            DATE_START,
+            DATE_END,
+            ACTIVO
+        ]
+        const [row] = await mysql.query(spSQL, spArgs);
+        const resultRow = Array.isArray(row) ? row[0] : row;
+        const created = resultRow && resultRow[0] ? resultRow[0] : null;
 
+        if (!created) {
+            return res.status(500).json({
+                status: 'error',
+                message: 'No se pudo crear el proyecto.'
+            })
+        }
         // Actualizar el caché en Redis
-        const cacheKey = `projects:${1}`;
+        const cacheKey = `projects:${id_user}`;
         const cachedData = await redisClient.get(cacheKey);
-
+        
         if (cachedData) {
             const projectsList = JSON.parse(cachedData);
-            projectsList.push(newProject[0]); // agrega nuevo projecto a la lista
+            projectsList.push(created); // agrega nuevo projecto a la lista
             await redisClient.set(cacheKey, JSON.stringify(projectsList), { EX: KEY_REDIS_EXPIRY }); // actualiza cache
         }
         res.status(201).json({
             status: 'success',
-            message: `El proyecto "${name}" ha sido creado exitosamente.`,
-            data: newProject[0]
+            message: `El proyecto "${NAME}" ha sido creado exitosamente.`,
+            data: created
         })
     } catch (error) {
         return res.status(500).json({
@@ -97,7 +140,8 @@ export const createProject = async (req, res) => {
 
 export const updateProject = async (req, res) => {
     const {id} = req.params;
-    let {name, ruc, rs, amount, id_employees, date_start, date_end} = req.body
+    const id_user = req.user.ID_USER;
+    let {ID_PROJECT, NAME, ID_JURIDIC, AMOUNT, ID_NATURAL, DATE_START, DATE_END} = req.body
     // Validación básica
     if (!id) {
         return res.status(400).json({ 
@@ -108,64 +152,62 @@ export const updateProject = async (req, res) => {
 
     // Sanitización manual (elimina espacios y caracteres peligrosos básicos)
     // Validación manual
-    const err =
-        validation.name(name) ||
-        validation.ruc(ruc) ||
-        validation.rs(rs) ||
-        validation.price(amount) ||
-        validation.id(id_employees) ||
-        validation.dateHour(date_start) ||
-        validation.dateHour(date_end);
-    
+   const err =
+            validation.id(ID_PROJECT) ||
+            validation.name(NAME) ||
+            validation.id(ID_JURIDIC) ||
+            validation.price(AMOUNT) ||
+            validation.id(ID_NATURAL) ||
+            validation.dateHour(DATE_START) ||
+            validation.dateHour(DATE_END);
+        
     if (err) {
         return res.status(400).json({ status: 'error', message: err });
     }
+    const mysql = await pool.getConnection();
 
     try {
-        const [result] = await pool.query(
-            `UPDATE project SET  
-            name = IFNULL(?, name),  
-            ruc = IFNULL(?, ruc),  
-            rs = IFNULL(?, rs),  
-            amount = IFNULL(?, amount),  
-            id_employees = IFNULL(?, id_employees), 
-            date_start = IFNULL(?, date_start), 
-            date_end = IFNULL(?, date_end) 
-            WHERE state = 1 AND id = ? AND id_user = ?`,
-            [name, ruc, rs, amount, id_employees, date_start, date_end, id, 1]
-        )
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
+        const spSql = 'CALL sp_update_project(?, ?, ?, ?, ?, ?, ?, ?)';
+        const spArgs = [
+            id_user,
+            id,
+            NAME,
+            ID_JURIDIC,
+            AMOUNT,
+            ID_NATURAL,
+            DATE_START,
+            DATE_END
+        ]
+        const [rows] = await mysql.query(spSql, spArgs);
+        const resultRows = Array.isArray(rows) ? rows[0] : rows;
+        const created = resultRows && resultRows[0] ? resultRows[0] : null;
+
+        if (!created) {
+            return res.status(500).json({
                 status: 'error',
-                message: 'Proyecto no encontrado o no actualizado.'
-            })
+                message: 'No se recibió respuesta del SP al crear el colaborador.'
+            });
         }
-        const [row] = await pool.query(
-            'SELECT p.id, p.name, p.ruc, p.rs, p.amount, p.id_employees, p.date_start, p.date_end, e.name AS name_employee, e.last_name ' +
-            'FROM project p ' +
-            'JOIN employees e ON p.id_employees = e.id ' +
-            'WHERE p.state = 1 AND p.id = ? AND p.id_user = ?',
-            [id, 1] // Aquí usas el id del usuario del token
-        );
         // 🔄 Actualizar Redis
-        const cacheKey = `projects:${1}`;
+        const cacheKey = `projects:${id_user}`;
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
             let proyectList = JSON.parse(cachedData);
-            const index = proyectList.findIndex(e => e.id === parseInt(id));
+            const index = proyectList.findIndex(e => e.ID_PROJECT === parseInt(id));
             if (index !== -1) {
                 // Actualiza los campos
                 proyectList[index] = {
                     ...proyectList[index],
-                    name, ruc, rs, amount, id_employees, date_start, date_end
+                    ...created
                 };
+                console.log('proyectList[index]', proyectList[index])
                 await redisClient.set(cacheKey, JSON.stringify(proyectList), { EX: KEY_REDIS_EXPIRY });
             }
         }
         res.status(200).json({
             status: 'success',
-            message: `Proyecto "${row[0].name}" actualizado correctamente.`,
-            data: row[0]
+            message: `Proyecto "${created.NAME}" actualizado correctamente.`,
+            data: created
         });
     } catch (error) {
         return res.status(500).json({
@@ -184,21 +226,26 @@ export const deleteProject = async (req, res) => {
             message: 'ID de proyecto requerido.' 
         });
     };
+    const mysql = await pool.getConnection();
     try {
-        const [result] = await pool.query(
-            `UPDATE project   
-            SET state = 0 WHERE state = 1 AND id = ? AND id_user = ?`, 
-            [id, 1]
-        );
+        const spSql = 'CALL sp_delete_project(?, ?)';
+        const spArgs = [
+            req.user.ID_USER,
+            id,
+        ]
+        const [result] = await mysql.query(spSql, spArgs);
+        console.log(result)
         if (result.affectedRows === 0) {
             return res.status(404).json({ 
                 status: 'error', 
                 message: 'Proyecto no encontrado.' 
             });
         };
+        await mysql.release();  
         // 🔄 Eliminar del caché Redis
-        const cacheKey = `projects:${1}`;
+        const cacheKey = `projects:${req.user.ID_USER}`;
         const cachedData = await redisClient.get(cacheKey);
+        
         if (cachedData) {
             let projectList = JSON.parse(cachedData);
             projectList = projectList.filter(e => e.id !== parseInt(id));

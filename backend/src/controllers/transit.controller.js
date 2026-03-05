@@ -1,6 +1,27 @@
 import { pool } from '../mysql_db.js';
 import { validation } from '../util/validate.js';
 
+
+export const getDataSelect = async (req, res) => {
+    const id_user = req.user.ID_USER;
+    try {
+        const [select] = await pool.query(
+            'CALL sp_select_locations(?)',
+            [id_user]
+        )
+        res.status(200).json({
+            status: 'success',
+            message: 'Data obtenida correctamente.',
+            data: select?.[0] || []
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            message: 'No se pueden obtener la data. | ' + error,
+        })
+    }
+}
+
 export const getTransit = async (req, res) => {
 
     const { id_project, id_location, id_employee, id_area } = req.query;

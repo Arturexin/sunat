@@ -1,47 +1,57 @@
 import { pool } from '../mysql_db.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import redisClient from '../redis_db.js';
 import { validation } from '../util/validate.js';
 import { userExists } from '../util/val_user.js';
+import { SECRET_JWT_KEY, REFRESH_TOKEN_EXPIRY, ACCESS_TOKEN_EXPIRY, IS_PRODUCTION, ACTIVO } from '../config.js';
+import { generateAccessToken, generateRefreshToken } from '../util/verifyToken.js';
 
 
 export const loginUser = async (req, res) =>{
-    let { user, password } = req.body;
+    let { USER, PASSWORD } = req.body;
 
-    const err = validation.user(user) || validation.password(password);
+    const err = validation.user(USER) || validation.password(PASSWORD);
     if (err) return res.status(400).json({
         status: 'error',
         message: 'Usuario o contraseña inválidos.'
     })
 
     try {
-        const userCheck = await userExists(pool, user);
+        const userCheck = await userExists(pool, USER, ACTIVO);
         if(!userCheck.validation) {
-            return res.json({
-                status: 'error',
-                message: 'Usuario o contraseña inválidos.'
-            })
+          return res.json({
+            status: 'error',
+            message: 'Usuario o contraseña inválidos.'
+          })
         }
         const userData = userCheck.data[0];
-        const isValidPassword = await bcrypt.compare(password, userData.password_hash);
+        const isValidPassword = await bcrypt.compare(PASSWORD, userData.PASSWORD_HASH);
         if (!isValidPassword) {
-            return res.json({
-                status: 'error',
-                message: 'Usuario o contraseña inválidos.'
-            })
+          return res.json({
+            status: 'error',
+            message: 'Usuario o contraseña inválidos.'
+          })
         }
         const payload = {
-            id: userData.id,
-            username: userData.user,
-            name: userData.name,
-            role: userData.role
+          ID_USER: userData.ID_USER,
+          ID_ENTITY: userData.ID_ENTITY,
+          USER: userData.USER,
+          NAME: userData.NAME + ' ' + userData.LAST_NAME,
+          ROLE: userData.ROLE
         }
+
         const accessToken = generateAccessToken(payload);
         const refreshToken = generateRefreshToken(payload);
 
         // Guardar refresh token en Redis con expiración
-        await redisClient.set(`refresh:${ user.id }`, refreshToken, { EX: `${REFRESH_TOKEN_EXPIRY}` }); // 7 días
+        await redisClient.set(
+          `refresh:${userData.ID_USER}`, 
+          refreshToken, 
+          { EX: `${REFRESH_TOKEN_EXPIRY}` 
+        }); // 7 días
 
-        const { password_hash: __dirname, ...userData_ } = userData;
+        // const { PASSWORD_HASH, ...userData_ } = userData;
         return res
             .status(200)
             .cookie('access_token', accessToken, {
@@ -59,7 +69,7 @@ export const loginUser = async (req, res) =>{
             .json({
                 status: 'success',
                 message: 'Login exitoso.',
-                userData_
+                payload
             });
     } catch (error) {
         return res.status(500).json({
@@ -77,8 +87,8 @@ export const logoutUser = async (req, res) => {
       try {
         const decoded = jwt.verify(refreshToken, SECRET_JWT_KEY);
         const redisKeysToDelete = [
-          `employees:${decoded.id}`,
-          `location:${decoded.id}`,
+          // `employees:${decoded.id}`,
+          // `location:${decoded.id}`,
           `refresh:${decoded.id}`,
         ];
         await Promise.all(redisKeysToDelete.map(key => redisClient.del(key)));

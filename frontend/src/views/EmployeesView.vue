@@ -26,52 +26,58 @@ import { useDB } from '../stores/dataBases.js';
         closeConfirm
     } = useConfirmation();
     const campos = ref({
-        id:'',
-        name: '',
-        last_name: '',
-        doc: '',
-        phone: '',
-        position: '',
+        ID_NATURAL:'',
+        NAME: '',
+        LAST_NAME: '',
+        NUMBER_DOCUMENT: '',
+        NUMBER_MOVIL: '',
+        ID_ROLE: '0',
     });
     const dbStore = useDB();
+    const roleCache = ref([]);
     const employeesCache = ref([])
     const projectsCache = ref([])
 
     function selectEmployee (result) {
-        campos.value.id = result.id;
-        campos.value.name = result.name;
-        campos.value.last_name = result.last_name;
-        campos.value.doc = result.doc;
-        campos.value.phone = result.phone;
-        campos.value.position = result.position;
+        campos.value.ID_NATURAL = result.ID_NATURAL;
+        campos.value.NAME = result.NAME;
+        campos.value.LAST_NAME = result.LAST_NAME;
+        campos.value.NUMBER_DOCUMENT = result.NUMBER_DOCUMENT;
+        campos.value.NUMBER_MOVIL = result.NUMBER_MOVIL;
+        campos.value.ID_ROLE = result.ID_ROLE;
 
-        modalMessage(true, `Datos de "${result.name} ${result.last_name}" obtenidos.`, 'info')
+        modalMessage(true, `Datos de "${result.NAME} ${result.LAST_NAME}" obtenidos.`, 'info')
+    }
+    function restartCampos () {
+        campos.value.ID_NATURAL = '';
+        campos.value.NAME = '';
+        campos.value.LAST_NAME = '';
+        campos.value.NUMBER_DOCUMENT = '';
+        campos.value.NUMBER_MOVIL = '';
+        campos.value.ID_ROLE = '0';
     }
 
-    function buildRow() {
-        const data = {
-            id: validation.id(campos.value.id),
-            name: validation.name(campos.value.name),
-            last_name: validation.last_name(campos.value.last_name),
-            doc: validation.dni(campos.value.doc),
-            phone: validation.phone(campos.value.phone),
-            position: validation.rol(campos.value.position),
-            date_record: formatDate(null, { format: 'AMD_HMS' }),
+    function buildRow(dataRef) {
+        if (!dataRef || !dataRef.value) return null
+        const result = {}
+        for (let item of Object.keys(dataRef.value)) {
+            const val = dataRef.value[item]
+            const validator = validation[item]
+            result[item] = typeof validator === 'function' ? validator(val) : val
         }
-        return data;
-    };
+        return result
+    }
     async function addEmployee (row){
         const ruta = `employee/add`;
         try {
             const response = await sendData(ruta, row)
-            console.log(response);
             if(response.status === 'success'){
                 // if(dbStore.db_transit_all.data.length < 20){
                 //     dbStore.addRow(response.data, 'db_transit_all');
                 // }
                 dbStore.addRow(response.data, 'db_employees_all');
                 await loadData()
-                restablecer(campos.value, resetForm);
+                restartCampos();
                 modalMessage(true, response.message, 'success')
             }
         } catch (error) {
@@ -80,13 +86,13 @@ import { useDB } from '../stores/dataBases.js';
     }
 
     async function updateEmployee (row) { 
-        const ruta = `employee/update/${row.id}`;
+        const ruta = `employee/update/${row.ID_NATURAL}`;
         try {
             const response = await updateData(ruta, row);
             if(response.status === 'success'){
-                dbStore.updateRow(row.id, response.data, 'db_employees_all');
+                dbStore.updateRow(row.ID_NATURAL, response.data, 'db_employees_all');
                 await loadData()
-                restablecer(campos.value, resetForm);
+                restartCampos();
                 modalMessage(true, response.message, 'success')
             }
         } catch (error) {
@@ -94,15 +100,15 @@ import { useDB } from '../stores/dataBases.js';
         }
     }
     async function procesar(){
-        const row = buildRow();
+        const row = buildRow(campos);
         if (row.status === 'error') {
             return modalMessage(true, `${row.message}`, 'error');
         }
 
-        if(row.id !== ''){
+        if(row.ID_NATURAL !== ''){
             openConfirm({
                 title: '¿Actualizar colaborador?',
-                message:    `¿Deseas actualizar al colaborador "${row.name} ${row.last_name}". 
+                message:    `¿Deseas actualizar al colaborador "${row.NAME} ${row.LAST_NAME}". 
                             Esta acción no se puede deshacer.`,
                 confirmLabel: 'Sí, actualizar',
                 cancelLabel: 'Cancelar',
@@ -112,7 +118,7 @@ import { useDB } from '../stores/dataBases.js';
         }else{
             openConfirm({
                 title: '¿Crear colaborador?',
-                message:    `¿Deseas crear al colaborador "${row.name} ${row.last_name}".  
+                message:    `¿Deseas crear al colaborador "${row.NAME} ${row.LAST_NAME}".  
                             Esta acción no se puede deshacer.`,
                 confirmLabel: 'Sí, crear',
                 cancelLabel: 'Cancelar',
@@ -123,11 +129,11 @@ import { useDB } from '../stores/dataBases.js';
     }
 
     async function deleteEmployee (data) {
-        let ruta = `employee/delete/${data.id}`;
+        let ruta = `employee/delete/${data.ID_NATURAL}`;
         try {
             const response = await updateData(ruta);
             if (response.status === 'success') {
-                dbStore.deleteRow(data.id, 'db_employees_all');
+                dbStore.deleteRow(data.ID_NATURAL, 'db_employees_all', 'ID_NATURAL');
                 modalMessage(true, response.message, 'success')
             }else{
                 modalMessage(true, response.message, 'error')
@@ -141,7 +147,7 @@ import { useDB } from '../stores/dataBases.js';
     function onDeleteClick(data) {
         openConfirm({
             title: '¿Eliminar colaborador?',
-            message:    `¿Deseas eliminar el colaborador "${data.name} ${data.last_name}"? 
+            message:    `¿Deseas eliminar el colaborador "${data.NAME} ${data.LAST_NAME}"? 
                         Esta acción no se puede deshacer.`,
             confirmLabel: 'Sí, eliminar',
             cancelLabel: 'Cancelar',
@@ -150,16 +156,11 @@ import { useDB } from '../stores/dataBases.js';
         });
     }
     async function loadData() {
-        if (dbStore.db_employees_all.data.length === 0) {
-            await dbStore.createDB('db_employees_all', 'employees');
-        }
-        employeesCache.value = dbStore.db_employees_all.data;
-        console.log("Empleados cache:", employeesCache.value);
-        if (dbStore.db_projects_all.data.length === 0) {
-            await dbStore.createDB('db_projects_all', 'projects');
-        }
-        projectsCache.value = dbStore.db_projects_all.data;
-        console.log("Proyectos cache:", projectsCache.value);
+        await dbStore.createDB('db_roles_all', 'roles');
+        roleCache.value = dbStore.db_roles_all.data;
+
+        await dbStore.createDB('db_employees_all', 'employees');
+        employeesCache.value = dbStore.db_employees_all.data; 
     };
     onMounted(async () => {
         await loadData();
@@ -172,22 +173,24 @@ import { useDB } from '../stores/dataBases.js';
             <h2>Colaboradores</h2>
 
             <label for="name">Nombres</label>
-            <input id="name" type="text" name="name" v-model="campos.name" required title="Sólo se admite letras y espacios.">
+            <input id="name" type="text" name="name" v-model="campos.NAME" required title="Sólo se admite letras y espacios.">
 
             <label for="last_name">Apellidos</label>
-            <input id="last_name" type="text" name="last_name" v-model="campos.last_name" required title="Sólo se admite letras y espacios.">
+            <input id="last_name" type="text" name="last_name" v-model="campos.LAST_NAME" required title="Sólo se admite letras y espacios.">
 
             <label for="doc">DNI</label>
-            <input id="doc" type="text" name="doc" v-model="campos.doc" required title="Sólo se admite números, 8 dígitos.">
+            <input id="doc" type="text" name="doc" v-model="campos.NUMBER_DOCUMENT" required title="Sólo se admite números, 8 dígitos.">
 
             <label for="phone">Teléfono / celular</label>
-            <input id="phone" type="text" name="phone" v-model="campos.phone" required title="Sólo se admite números, 9 dígitos.">
+            <input id="phone" type="text" name="phone" v-model="campos.NUMBER_MOVIL" required title="Sólo se admite números, 9 dígitos.">
 
             <label for="position">Puesto de trabajo</label>
-            <input id="position" type="text" name="position" v-model="campos.position" required title="Sólo se admite letras y espacios.">
-
+            <select id="position" name="position" v-model="campos.ID_ROLE" required>
+                <option value="0" disabled>Seleccione un puesto</option>
+                <option v-for="r in roleCache" :value="r.ID_ROLE">{{ r.NAME }}</option>
+            </select>
             <button type="submit" class="btn-in" @click.prevent="procesar()">Procesar</button>
-            <button type="submit" class="btn-out" @click.prevent="restablecer(campos, resetForm)">Restablecer</button>
+            <button type="submit" class="btn-out" @click.prevent="restartCampos()">Restablecer</button>
         </form>
             <table class="tabla-principal">
                 <thead>
@@ -207,11 +210,11 @@ import { useDB } from '../stores/dataBases.js';
             </thead>
             <tbody>
                 <tr v-for="e in employeesCache" :key="e.id">
-                    <td>{{ e.name }} {{ e.last_name }}</td>
-                    <td>{{ e.doc }}</td>
-                    <td>{{ e.position }}</td>
-                    <td>{{ e.phone }}</td>
-                    <td>{{ formatDate(e.date_record, { format: 'DMA' }) }}</td>
+                    <td>{{ e.NAME }} {{ e.LAST_NAME }}</td>
+                    <td>{{ e.NUMBER_DOCUMENT }}</td>
+                    <td>{{ e.ROLE }}</td>
+                    <td>{{ e.NUMBER_MOVIL }}</td>
+                    <td>{{ formatDate(e.DATE_RECORD, { format: 'DMA' }) }}</td>
                     <td style="text-align: center; width: 100px;">
                         <div>
                             <button class="btn-tab-edit" @click="selectEmployee(e)">Editar</button>

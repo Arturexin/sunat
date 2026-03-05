@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../controllers/employees.controller.js';
+import { verifyToken } from "../util/verifyToken.js"; //middleware verifica token válido
+import { getEmployees, createEmployee, updateEmployee, deleteEmployee, getRoles, getSelectEmployees } from '../controllers/employees.controller.js';
 
 const router = Router();
 
-router.get('/employees', getEmployees);
-router.post('/employee/add', createEmployee);
-router.patch('/employee/update/:id', updateEmployee);
-router.patch('/employee/delete/:id', deleteEmployee);
-
+router.get('/select_employees', verifyToken, getSelectEmployees);
+router.get('/roles', verifyToken, getRoles);
+router.get('/employees', verifyToken, getEmployees);
+router.post('/employee/add', verifyToken, createEmployee);
+router.patch('/employee/update/:id', verifyToken, updateEmployee);
+router.patch('/employee/delete/:id', verifyToken, deleteEmployee);
 export default router;
 

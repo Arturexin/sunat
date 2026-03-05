@@ -1,21 +1,21 @@
 import jwt from 'jsonwebtoken';
 import { SECRET_JWT_KEY, ACCESS_TOKEN_EXPIRY, REFRESH_TOKEN_EXPIRY, IS_PRODUCTION } from '../config.js';
-import redisClient from '../redis_db.js';
+// import redisClient from '../redis_db.js';
 
 export const generateAccessToken = (payload) =>{
     return jwt.sign(payload, SECRET_JWT_KEY, {
-        exporesIn: `${parseInt(ACCESS_TOKEN_EXPIRY)}s`
+        expiresIn: `${parseInt(ACCESS_TOKEN_EXPIRY)}s`
     })
 };
 
 export const generateRefreshToken = (payload) => {
     return jwt.sign(payload, SECRET_JWT_KEY, {
-        exporesIn: `${parseInt(REFRESH_TOKEN_EXPIRY)}s`
+        expiresIn: `${parseInt(REFRESH_TOKEN_EXPIRY)}s`
     })
 };
 
 export async function verifyToken(req, res, next) {
-    const accessToken = req.cookies.accessToken;
+    const accessToken = req.cookies.access_token;
     if (!accessToken) {
         return res.status(401).json({
             status: 'error',
@@ -41,10 +41,10 @@ export async function refreshToken (req, res) {
   try { 
     const decoded = jwt.verify(token, SECRET_JWT_KEY);
 
-    const stored = await redisClient.get(`refresh:${decoded.id}`);
-    if (stored !== token) {
-      return res.status(403).json({ status: 'error', message: 'Token inválido.' });
-    }
+    // const stored = await redisClient.get(`refresh:${decoded.id}`);
+    // if (stored !== token) {
+    //   return res.status(403).json({ status: 'error', message: 'Token inválido.' });
+    // }
 
     const newAccessToken = generateAccessToken({
       id: decoded.id,

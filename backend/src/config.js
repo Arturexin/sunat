@@ -20,3 +20,6 @@ export const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY
 export const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY
 export const NODE_ENV = process.env.NODE_ENV || 'development'
 export const IS_PRODUCTION = NODE_ENV === 'production'
+
+export const ACTIVO = process.env.ACTIVO || 1
+export const INACTIVO = process.env.INACTIVO || 0

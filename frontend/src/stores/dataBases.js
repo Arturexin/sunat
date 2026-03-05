@@ -3,16 +3,28 @@ import { searchData } from '../services/crud.js';
 
 export const useDB = defineStore('db', {
     state: () => ({
+        db_coin_all: { data: [] },
+        db_employees_select: { data: [] },
+        db_locations_select: { data: [] },
+        db_projects_select: { data: [] },
+        
         db_users: { data: [] },
         db_employees: { data: [] },
         db_transit: { data: [] },
         db_location: { data: [] },
+        db_roles: { data: [] },
+        db_empresa: { data: [] },
+        
         db_employees_all: { data: [] },
         db_projects_all: { data: [] },
         db_locations_all: { data: [] },
         db_areas_all: { data: [] },
         db_transit_all: { data: [] },
         db_location_all: { data: [] },
+        db_roles_all: { data: [] },
+        db_empresa_all: { data: [] },
+
+        amount_total: 0,
 
         files: {
             xlsx: null,
@@ -27,12 +39,8 @@ export const useDB = defineStore('db', {
             id_employee: '0',
         },
         
-        object_transit: {
-            ruc: [],
-            comprobante: [],
-            duplicados: [],
-            descartados: [],
-        },
+        array_comprobantes: [],
+
         btn_disabled: [0, 0, 0, 0, 0, 0],
 
         isAuth: {
@@ -42,7 +50,10 @@ export const useDB = defineStore('db', {
                 username: "",
                 role: ""
             }
-        }
+        },
+        modal_archivo: false,
+        row_archivo: {},
+        modo_modal: false
     }),
     actions: {
         async createDB(db, ruta) {
@@ -71,9 +82,10 @@ export const useDB = defineStore('db', {
             this.isAuth = {
                 state: false,
                 user: {
-                    id: "",
-                    username: "",
-                    role: ""
+                    ID_USER: '',
+                    USER: '',
+                    NAME: '',
+                    ROLE: ''
                 }
             };
         },
@@ -88,9 +100,9 @@ export const useDB = defineStore('db', {
                 Object.assign(item, data);
             }
         },
-        deleteRow(id, db) {
+        deleteRow(id, db, id_field = 'id') {
             const dbStore = this[db];
-            const index = dbStore.data.findIndex(e => e.id === Number(id));
+            const index = dbStore.data.findIndex(e => e[id_field] === Number(id));
             if (index !== -1) {
                 dbStore.data.splice(index, 1);
             }

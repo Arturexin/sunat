@@ -19,6 +19,7 @@ except Exception as e:
 
 @app.route("/run-scraper", methods=["POST"])
 def run_scraper():
+    print("🔍 Ejecutando scraper...")
     if not r:
         return jsonify({"error": "Redis no está disponible", "redis_status": redis_status}), 500
     try:

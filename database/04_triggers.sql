@@ -1,0 +1,13 @@
+-- Triggers initialization file
+-- Recommendation: include `USE c_p_sunat;` at top if needed
+-- Define triggers after all tables are created
+
+-- Example skeleton:
+-- DELIMITER $$
+-- DROP TRIGGER IF EXISTS trg_example $$
+-- CREATE TRIGGER trg_example BEFORE INSERT ON entity
+-- FOR EACH ROW
+-- BEGIN
+--   SET NEW.DATE_RECORD = NOW();
+-- END $$
+-- DELIMITER ;

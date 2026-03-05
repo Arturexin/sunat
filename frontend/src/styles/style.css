@@ -106,6 +106,7 @@ body {
   border-radius: 0.25rem;
   background-color: var(--fondo-a-input);
   color: var(--color-primario);
+  cursor: pointer;
 }
 .file {
   font: inherit;

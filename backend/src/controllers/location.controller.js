@@ -1,10 +1,31 @@
 import { pool } from '../mysql_db.js';
 import redisClient from '../redis_db.js';
-import { KEY_REDIS_EXPIRY } from '../config.js';
+import { KEY_REDIS_EXPIRY, ACTIVO } from '../config.js';
 import { validation } from '../util/validate.js';
 
+export const getSelectLocations= async (req, res) => {
+    const id_user = req.user.ID_USER;
+    try {
+        const [select] = await pool.query(
+            'CALL sp_select_locations(?)',
+            [id_user]
+        )
+        res.status(200).json({
+            status: 'success',
+            message: 'Data obtenida correctamente.',
+            data: select?.[0] || []
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            message: 'No se pueden obtener la data. | ' + error,
+        })
+    }
+}
+
 export const getLocations = async (req, res) => {
-    const cacheKey = `locations:${1}`;
+    const id_user = req.user.ID_USER;
+    const cacheKey = `locations:${id_user}`;
     try {
         // 1. Buscar en caché
         const cachedData = await redisClient.get(cacheKey);
@@ -16,22 +37,19 @@ export const getLocations = async (req, res) => {
             });
         }
         // 2. Si no hay cache, consulta base de datos
-        const [rows] = await pool.query(
-            'SELECT l.id, l.name, l.address, l.amount, l.date_start, l.date_end, l.date_record, l.id_project, p.name AS name_project ' +
-            'FROM location l ' +
-            'JOIN project p ON l.id_project = p.id ' +
-            'WHERE l.id_user = ? AND l.state = 1 ' +
-            'ORDER BY l.id ASC',
-            [1]
-        );
+        const [locations] = await pool.query(
+            `CALL sp_list_locations(?, ?)`,
+            [id_user, ACTIVO]
+        )
+
         // 3. Guardar en Redis por 100 minutos
-        await redisClient.set(cacheKey, JSON.stringify(rows), {
+        await redisClient.set(cacheKey, JSON.stringify(locations[0]), {
             EX: KEY_REDIS_EXPIRY
         });
         res.status(200).json({
             status: 'success',
             message: 'Locaciones obtenidas correctamente.',
-            data: rows
+            data: locations?.[0] ?? []
         })
     } catch (error) {
         return res.status(500).json({
@@ -42,48 +60,58 @@ export const getLocations = async (req, res) => {
 };
 
 export const createLocation = async (req, res) => {
-    let { name, address, amount, date_start, date_end, date_record, id_project } = req.body;
+    const id_user = req.user.ID_USER;
+    let { NAME, ADDRESS, AMOUNT, DATE_START, DATE_END, ID_PROJECT, ID_COIN } = req.body;
     //validación básica
     const err = 
-        validation.location(name) ||
-        validation.address(address) ||
-        validation.price(amount) ||
-        validation.dateHour(date_start) ||
-        validation.dateHour(date_end) ||
-        validation.dateHour(date_record) ||
-        validation.id(id_project); 
+        validation.location(NAME) ||
+        validation.address(ADDRESS) ||
+        validation.price(AMOUNT) ||
+        validation.dateHour(DATE_START) ||
+        validation.dateHour(DATE_END) ||
+        validation.id(ID_PROJECT) ||
+        validation.id(ID_COIN); 
     
     if (err) {
         return res.status(400).json({ status: 'error', message: err });
     };
-
+    const mysql = await pool.getConnection();
     try {
-        const [row] = await pool.query(
-            'INSERT INTO location ' +
-            '(name, address, amount, date_start, date_end, date_record, id_project, id_user, state) ' +
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [ name, address, amount, date_start, date_end, date_record, id_project, 1, 1 ]
-        )
-        const [newLocation] = await pool.query(
-            'SELECT l.id, l.name, l.address, l.amount, l.date_start, l.date_end, l.date_record, l.id_project, p.name AS name_project ' +
-            'FROM location l ' +
-            'JOIN project p ON l.id_project = p.id ' +
-            'WHERE l.state = 1 AND l.id = ? AND l.id_user = ?',
-            [row.insertId, 1] // Aquí usas el id del usuario del token
-        );
+        const spSQL = 'CALL sp_create_location(?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        const spArgs = [
+            id_user,
+            ID_PROJECT,
+            NAME,
+            ADDRESS,
+            AMOUNT,
+            DATE_START,
+            DATE_END,
+            ID_COIN,
+            ACTIVO
+        ]
+        const [row] = await mysql.query(spSQL, spArgs);
+        const resultRow = Array.isArray(row) ? row[0] : row;
+        const created = resultRow && resultRow[0] ? resultRow[0] : null;
+
+        if (!created) {
+            return res.status(500).json({
+                status: 'error',
+                message: 'No se pudo crear la locación.'
+            })
+        }
 
         // 🔄 Actualizar el caché en Redis
-        const cacheKey = `locations:${1}`;
+        const cacheKey = `locations:${id_user}`;
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
             const locationList = JSON.parse(cachedData);
-            locationList.push(newLocation[0]); // agrega nuevo empleado
+            locationList.push(created); // agrega nuevo empleado
             await redisClient.set(cacheKey, JSON.stringify(locationList), { EX: KEY_REDIS_EXPIRY }); // actualiza cache
         }
         res.status(201).json({
             status: 'success',
-            message: `Locación "${name}" creada exitosamente.`,
-            data: newLocation[0]
+            message: `Locación "${NAME}" creada exitosamente.`,
+            data: created
         })
     } catch (error) {
         return res.status(500).json({
@@ -94,8 +122,9 @@ export const createLocation = async (req, res) => {
 };
 
 export const updateLocation = async (req, res) => {
+    const id_user = req.user.ID_USER;
     const {id} = req.params;
-    let {name, address, amount, date_start, date_end, id_project} = req.body
+    let {ID_LOCATION, NAME, ID_ADDRESS, ADDRESS, AMOUNT, DATE_START, DATE_END, ID_PROJECT, ID_COIN} = req.body
     // Validación básica
     if (!id) {
         return res.status(400).json({ 
@@ -106,62 +135,62 @@ export const updateLocation = async (req, res) => {
 
     // Sanitización manual (elimina espacios y caracteres peligrosos básicos)
     // Validación manual
-    const err =
-        validation.location(name) ||
-        validation.address(address) ||
-        validation.price(amount) ||
-        validation.dateHour(date_start) ||
-        validation.dateHour(date_end) ||
-        validation.id(id_project); 
+    const err = 
+        validation.location(NAME) ||
+        validation.address(ADDRESS) ||
+        validation.price(AMOUNT) ||
+        validation.dateHour(DATE_START) ||
+        validation.dateHour(DATE_END) ||
+        validation.id(ID_PROJECT) ||
+        validation.id(ID_COIN); 
     
     if (err) {
         return res.status(400).json({ status: 'error', message: err });
-    }
-
+    };
+    const mysql = await pool.getConnection();
     try {
-        const [result] = await pool.query(
-            `UPDATE location SET  
-            name = IFNULL(?, name),  
-            address = IFNULL(?, address),  
-            amount = IFNULL(?, amount),  
-            date_start = IFNULL(?, date_start), 
-            date_end = IFNULL(?, date_end), 
-            id_project = IFNULL(?, id_project) 
-            WHERE state = 1 AND id = ? AND id_user = ?`,
-            [name, address, amount, date_start, date_end, id_project, id, 1]
-        )
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
+        const spSql = 'CALL sp_update_location(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        const spArgs = [
+            id_user,
+            id,
+            ID_PROJECT, 
+            NAME, 
+            ID_ADDRESS, 
+            ADDRESS, 
+            AMOUNT, 
+            DATE_START, 
+            DATE_END, 
+            ID_COIN
+        ]
+        const [rows] = await mysql.query(spSql, spArgs);
+        const resultRows = Array.isArray(rows) ? rows[0] : rows;
+        const created = resultRows && resultRows[0] ? resultRows[0] : null;
+
+        if (!created) {
+            return res.status(500).json({
                 status: 'error',
-                message: 'Locación no encontrada o no actualizada.'
-            })
+                message: 'No se recibió respuesta del SP al crear el colaborador.'
+            });
         }
-        const [row] = await pool.query(
-            'SELECT l.id, l.name, l.address, l.amount, l.date_start, l.date_end, l.date_record, l.id_project, p.name AS name_project ' +
-            'FROM location l ' +
-            'JOIN project p ON l.id_project = p.id ' +
-            'WHERE l.state = 1 AND l.id = ? AND l.id_user = ?',
-            [id, 1] // Aquí usas el id del usuario del token
-        );
         // 🔄 Actualizar Redis
-        const cacheKey = `locations:${1}`;
+        const cacheKey = `locations:${id_user}`;
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
             let locationList = JSON.parse(cachedData);
-            const index = locationList.findIndex(e => e.id === parseInt(id));
+            const index = locationList.findIndex(e => e.ID_LOCATION === parseInt(id));
             if (index !== -1) {
                 // Actualiza los campos
                 locationList[index] = {
                     ...locationList[index],
-                    name, address, amount, date_start, date_end, id_project
+                    ...created
                 };
                 await redisClient.set(cacheKey, JSON.stringify(locationList), { EX: KEY_REDIS_EXPIRY });
             }
         }
         res.status(200).json({
             status: 'success',
-            message: `Locación "${row[0].name}" actualizada correctamente.`,
-            data: row[0]
+            message: `Locación "${created.NAME}" actualizada correctamente.`,
+            data: created
         });
     } catch (error) {
         return res.status(500).json({
@@ -172,32 +201,37 @@ export const updateLocation = async (req, res) => {
 };
 
 export const deleteLocation = async (req, res) => {
+    const id_user = req.user.ID_USER;
     const { id } = req.params;
     // Validación básica
     if (!id) {
         return res.status(400).json({ 
             status: 'error', 
-            message: 'ID de proyecto requerido.' 
+            message: 'ID de locación requerido.' 
         });
     };
+    const mysql = await pool.getConnection();
     try {
-        const [result] = await pool.query(
-            `UPDATE location   
-            SET state = 0 WHERE state = 1 AND id = ? AND id_user = ?`, 
-            [id, 1]
-        );
+        const spSql = 'CALL sp_delete_location(?, ?)';
+        const spArgs = [
+            id_user,
+            id,
+        ]
+        const [result] = await mysql.query(spSql, spArgs);
+        console.log(result)
         if (result.affectedRows === 0) {
             return res.status(404).json({ 
                 status: 'error', 
-                message: 'Locación no encontrado.' 
+                message: 'Locación no encontrada.' 
             });
         };
+        await mysql.release();  
         // 🔄 Eliminar del caché Redis
-        const cacheKey = `locations:${1}`;
+        const cacheKey = `locations:${id_user}`;
         const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
             let locationList = JSON.parse(cachedData);
-            locationList = locationList.filter(e => e.id !== parseInt(id));
+            locationList = locationList.filter(e => e.ID_LOCATION !== parseInt(id));
             await redisClient.set(cacheKey, JSON.stringify(locationList), { EX: KEY_REDIS_EXPIRY });
         }
         res.json({ 
@@ -207,7 +241,7 @@ export const deleteLocation = async (req, res) => {
     } catch (error) {
         res.status(500).json({ 
             status: 'error', 
-            message: 'No se puede eliminar la locación.' 
+            message: 'No se puede eliminar la locación. | ' + error
         });
     };
 };

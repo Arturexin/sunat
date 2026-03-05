@@ -1,5 +1,36 @@
 <script setup>
+    import { computed } from 'vue';
+    import { useRouter } from 'vue-router';
+    import { sendData } from '../../src/services/crud.js';
+    import { useDB } from '../../src/stores/dataBases.js';
 
+    const dbStore = useDB();
+    const router = useRouter();
+
+    const isLogged = computed(() => dbStore.isAuth?.state === true)
+    async function logout(){
+        try {
+            const response = await sendData('logout');
+            if (response.status === 'success') {
+                console.log(response.message);
+                // Limpia cualquier estado local si lo usas
+                dbStore.clearDB();
+                console.log('dbStore.isAuth después de logout', dbStore.isAuth);
+                // localStorage.setItem('employees', JSON.stringify([]));
+                // localStorage.setItem('location', JSON.stringify([]));
+                // Redirige a login
+                router.replace({ name: 'login' });
+            } else {
+                // Si el backend responde con error
+                console.error(response.message || 'Error al cerrar sesión.');
+                // Aquí podrías mostrar un mensaje al usuario si lo deseas
+            }
+        } catch (error) {
+            // Error de red o inesperado
+            console.error("Error durante el logout:", error.message || error);
+            // Aquí podrías mostrar un mensaje al usuario si lo deseas
+        }
+    }
 </script>
 
 <template>
@@ -7,18 +38,16 @@
         <nav>
             <ul class="lista_">
                 <li style="padding: 8px;"><h3 style="margin: 0;">Karpovick</h3></li>
-                <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'home'}">Home</RouterLink></li>
-                <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'project'}">Proyecto</RouterLink></li>
-                <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'location'}">Localidades</RouterLink></li>
-                <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'area'}">Area</RouterLink></li>
-                <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'employees'}">Colaboradores</RouterLink></li>
-                <!-- <li v-if="!dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" to="/">Home</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'qr'}">QR</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'dashboard'}">Dashboard</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'asistencia'}">Asistencias</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'colaborador'}">Colaboradores</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'sucursal'}">Sucursales</RouterLink></li>
-                <li v-if="dbStore.isAuth.state" style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'planilla'}">Planilla</RouterLink></li> -->
+                <template v-if="isLogged">
+
+                    <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'home'}">Home</RouterLink></li>
+                    <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'project'}">Proyecto</RouterLink></li>
+                    <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'location'}">Localidades</RouterLink></li>
+                    <li style="padding: 8px;"><RouterLink class="enlace" :to="{name: 'employees'}">Colaboradores</RouterLink></li>
+                    <li style="padding: 8px;"> 
+                        <button @click="logout">Salir</button>
+                    </li>
+                </template>
             </ul>
         </nav>
         <!-- <nav>

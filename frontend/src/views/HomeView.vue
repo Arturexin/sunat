@@ -1,5 +1,5 @@
 <script setup>
-    import { ref } from 'vue'
+    import { ref, watch, onMounted } from 'vue'
     import { sendData } from '../services/crud.js'
     import { useDB } from '../stores/dataBases.js'
     import Message from '../components/modal/Message.vue';
@@ -9,12 +9,12 @@
     import SearchFile from '../components/search/SearchFile.vue';
     import SelectDb from '../components/selects/SelectDb.vue';
     import TransitTable from '../components/tables/TransitTable.vue';
-    import SearchButton from '../components/search/SearchButton.vue';
+    import ModalEdit from '../components/modal/ModalEdit.vue';
     import { leerArchivo, uploadFiles } from '../services/search_input.js';
 
 
     const { 
-        tit_, 
+        
         modal_message, 
         modalMessage, 
         restablecer 
@@ -33,33 +33,56 @@
 
     const dbStore = useDB();
 
-    const btn = ref([0, 0, 0, 0, 0])
+    const tablas = ref([
+        { clave: 'comprobante', title: 'Comprobantes en tránsito' },
+        { clave: 'descartados', title: 'Comprobantes descartados' },
+        { clave: 'duplicados', title: 'Comprobantes duplicados' },
+        { clave: 'ruc', title: 'RUC' }
+    ])
+    const passed = ref({ruc: [], comprobante: [],})
+    const numTablas = ref(0)
 
     const loading = ref(false);
 
-    // Guardar archivo seleccionado
-
-    function btnTurn(position, reset) {
-        btn.value.forEach((e, i) => {
-            position === i ? btn.value[i] = 1 : btn.value[i] = 0;
-        })
-        reset === true ? btn.value[4] = 1 : btn.value[4] = 0;
-    }
-
+    const rows = ref([])
+    const groups = ref(['T', 'E', 'R'])
+    
+        
     const enviarJsonAlBackend = async () => {
-        if (!dbStore.object_transit || !dbStore.object_transit.comprobante?.length) {
-            modalMessage(true, `No hay datos para enviar.`, 'error')
+        
+        const setRuc = new Set()
+        rows.value.forEach(o => {
+            if (o.check) {
+                if (o['flat'] === 'T') {
+                    passed.value.comprobante.push(o)
+                    setRuc.add(o['RUC'])
+                }
+            }
+        })
+        passed.value.ruc = Array.from(setRuc)
+
+        if (!passed.value || !passed.value.comprobante.length) {
+            modalMessage(true, `No seleccionó ningún comprobante para enviar.`, 'error')
             return
         }
+
         loading.value = true;
         try {
             const ruta = "procesar-json"
-            const response = await sendData(ruta, dbStore.object_transit)
+            const response = await sendData(ruta, passed.value)
 
             if(response.status === "success") {
-                
-                dbStore.object_transit = response.result.data
-                btnTurn(2, true)
+                response.result.data.comprobante.forEach(e => {
+                    const match = rows.value.find(r => r['Nº'] === e['Nº'])
+                    if (match) {
+                        match['CONDICION DEL CONTRIBUYENTE'] = e['CONDICION DEL CONTRIBUYENTE']
+                        match['ESTADO DEL CONTRIBUYENTE'] = e['ESTADO DEL CONTRIBUYENTE']
+                        match['OBSERVACION CONSULTA CPE'] = e['OBSERVACION CONSULTA CPE']
+                    }
+                })
+                // object.value = response.result.data
+                passed.value = {ruc: [], comprobante: [],}
+                dbStore.btnDisabled(2, true);
                 modalMessage(true, `Archivo procesado exitosamente.`, 'success')
             } else {
                 throw new Error(`Error en el procesamiento: ${response.message}`)
@@ -74,15 +97,14 @@
     async function confirmSaveData() {
         openConfirm({
                     title: 'Guardar resultados',
-                    message:    `¿Desea guaradar los resultados obtenidos en la base de datos?".`,
+                    message:    `¿Desea guardar los resultados obtenidos en la base de datos?`,
                     confirmLabel: 'Sí, guardar',
                     cancelLabel: 'Cancelar',
                     action: saveDataToDB,
-                    data: dbStore.object_transit
+                    data: passed.value
                 });
     }
     async function saveDataToDB(data) {
-        console.log(data)
         try {
             const ruta = `transits/bulk`
             const response = await sendData(ruta, data)
@@ -100,76 +122,143 @@
     }
 
     const limpiarDatos = () => {
+        // Reset de archivos seleccionados
         dbStore.files.xlsx = null
         dbStore.files.pdf = null
-        dbStore.object_transit = {
-            ruc: [],
-            comprobante: [],
-            duplicados: [],
-            descartados: []
+
+        // Sincronizar la vista con el store vacío
+        rows.value = [...dbStore.array_comprobantes]
+
+        // Reset de estado de UI
+        numTablas.value = 0
+        loading.value = false
+
+        // Volver a habilitar el flujo inicial (Generar .xlsx)
+        dbStore.btnDisabled(0, true)
+    }
+
+    function assignData () {
+        if (Number(dbStore.id_data.id_employee) === 0 
+        && Number(dbStore.id_data.id_location) === 0 
+        && Number(dbStore.id_data.id_project) === 0 ) {
+            return modalMessage(true, `Seleccione una opción válida`, 'error')
+        }
+        for (let row of dbStore.array_comprobantes) {
+            if (row.check) {
+                row.ID_EMPLOYEE = dbStore.id_data.id_employee
+                row.ID_LOCATION = dbStore.id_data.id_location
+                row.ID_PROJECT = dbStore.id_data.id_project
+            }
         }
     }
+
+    function filtro () {
+        if (Number(dbStore.id_data.id_employee) === 0 
+        && Number(dbStore.id_data.id_location) === 0 
+        && Number(dbStore.id_data.id_project) === 0 ) {
+            return modalMessage(true, `Seleccione una opción válida`, 'error')
+        }
+        rows.value = dbStore.array_comprobantes.filter(row => 
+            row.ID_EMPLOYEE === dbStore.id_data.id_employee &&
+            row.ID_LOCATION === dbStore.id_data.id_location &&
+            row.ID_PROJECT === dbStore.id_data.id_project
+        );
+    }
+    function resetFilter () {
+        rows.value = [...dbStore.array_comprobantes]
+    }
+    function deleteRows () {
+        const filtered = rows.value.filter(row => !row.check)
+        rows.value = [...filtered]
+        dbStore.array_comprobantes = [...filtered]
+    }
+    function previous () {
+        if (numTablas.value > 0){
+            numTablas.value -= 1
+        }
+    }
+    function next () {
+        if (numTablas.value < 2){
+            numTablas.value += 1
+        }
+    }
+    onMounted(() => {
+        rows.value = [...dbStore.array_comprobantes]
+    })
+     // Mantener sincronizada la vista con el store cuando cambian los datos de tránsito
+    watch(() => dbStore.array_comprobantes, (nuevo) => {
+            rows.value = [...nuevo];
+        }
+    );
+
 
 </script>
 
 <template>
     <div class="container_home">
-        <h2 style="text-align: center;">Buscar lote de comprobantes</h2>
-
-        <search-file />
-
-        <select-db />
-
-        <search-button 
+        <!-- <search-button 
             :message_success="() => modalMessage(true, `Datos encontrados.`, 'success')" 
             :message_error="() => modalMessage(true, `Seleccione un proyecto.`, 'error')"
-        />
-        <br>
-        <h2 style="text-align: center;">Subir archivo Excel (.xlsx)</h2>
-
-        <div style="display: flex; align-items: baseline; gap: 10px;justify-content: center;">
-        
-            <button class="btn1" :disabled="!dbStore.btn_disabled[0]" @click="leerArchivo(dbStore, modalMessage)">
-                Generar data .xlsx
-            </button>
-            <button class="btn1" :disabled="!dbStore.btn_disabled[1]" @click="uploadFiles(dbStore, modalMessage)">
-                Generar data .pdf
-            </button>
-        
-            <button class="btn2" :disabled="!dbStore.btn_disabled[2]" @click="enviarJsonAlBackend">
-                Procesar data
-            </button>
-
-            <button class="btn4" :disabled="!dbStore.btn_disabled[3]" @click="confirmSaveData">
-                Guardar datos
-            </button>
-
-            <button class="btn3" :disabled="!dbStore.btn_disabled[4]" @click="limpiarDatos">
-                Limpiar datos
-            </button>
-
+        /> -->
+        <div style="display: flex;justify-content: center;align-items: center;gap: 20px;margin-top: 20px; border: 1px solid var(--color-primario); border-radius: 5px;">
+            <search-file />
+            <div style="display: flex; align-items: baseline; gap: 10px;justify-content: center;">
+                
+                <button class="button_action" style="background: var(--c-uno);" v-if="dbStore.btn_disabled[0]" @click="leerArchivo(dbStore, modalMessage)">
+                    Generar .xlsx
+                </button>
+                <button class="button_action" style="background: var(--c-uno);" v-if="dbStore.btn_disabled[1]" @click="uploadFiles(dbStore, modalMessage)">
+                    Generar .pdf
+                </button>
+            
+                <button class="button_action" style="background: var(--c-uno);" v-if="dbStore.btn_disabled[2]" @click="enviarJsonAlBackend">
+                    Procesar
+                </button>
+                
+                <button class="button_action" style="background: var(--c-uno);" v-if="dbStore.btn_disabled[3]" @click="confirmSaveData">
+                    Guardar
+                </button>
+                
+                <button class="button_action" style="background: var(--c-cuatro);" v-if="dbStore.btn_disabled[4]" @click="limpiarDatos">
+                    Limpiar
+                </button>
+                <button class="button_action" style="background: var(--c-cuatro);" @click="deleteRows()">
+                    Eliminar
+                </button>
+                
+            </div>
         </div>
+
+        <div style="display: flex;justify-content: center;align-items: center;gap: 20px;margin-top: 20px; border: 1px solid var(--color-primario); border-radius: 5px;">
+            <select-db />
+            <div style="display: flex; align-items: baseline; gap: 10px;justify-content: center;">
+                <button class="button_action" style="background: var(--c-uno);" @click="assignData">Asignar</button>
+                <button class="button_action" style="background: var(--c-uno);" @click="filtro()">Filtrar</button>
+                <button class="button_action" style="background: var(--c-cuatro);" @click="resetFilter()">Restablecer</button>
+            </div>
+            
+        </div>
+        
         <p v-if="loading">⏳ Procesando datos...</p>
-        <div v-if="dbStore.object_transit.comprobante.length > 0" class="output">
+        <div class="output">
+            <div style="display:flex; justify-content: center; align-items: center; gap: 10px;">
+                <button @click="previous"><</button>
+                <h2 style="text-align: center;">{{ tablas[numTablas].title }}</h2>
+                <button @click="next">></button>
+            </div>
             <transit-table 
-                :array_data="dbStore.object_transit.comprobante" 
+                v-if="rows.length > 0"
+                :array_data="rows"
+                :concept="groups[numTablas]"
             />
         </div>
-        <div v-if="dbStore.object_transit.duplicados.length > 0" class="output">
-            <transit-table 
-                :array_data="dbStore.object_transit.duplicados" 
-            />
+        <div class="modal-overlay" v-if="dbStore.modal_archivo">
+            <div class="modal-container">
+                <modal-edit 
+                :modo="dbStore.modo_modal"/>
+            </div>
         </div>
-        <div v-if="dbStore.object_transit.descartados.length > 0" class="output">
-            <transit-table 
-                :array_data="dbStore.object_transit.descartados" 
-            />
-        </div>
-        <div v-if="dbStore.object_transit.comprobante.length > 0">
-            <button class="btn3" @click="limpiarDatos">
-                Limpiar datos
-            </button>
-        </div>
+
         <Message 
             :show="modal_message.showModal" 
             :message="modal_message.msj" 
@@ -188,11 +277,19 @@
     </div>
 </template>
 <style>
+.button_action {
+    width: 100px;
+    color: var(--color-primario);
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
 .container {
   width: 1200px;
   margin: 2rem auto;
   padding: 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-primario);
   border-radius: 8px;
   font-family: sans-serif;
 }
@@ -202,9 +299,6 @@ h2 {
   margin-bottom: 1rem;
 }
 
-input[type="file"] {
-  margin-bottom: 1rem;
-}
 
 .btn1 {
   background-color: #007bff;
@@ -260,7 +354,7 @@ pre {
 
 .select_container{
     display: flex;
-    gap: 30px;
+    gap: 10px;
     margin-bottom: 1rem;
     justify-content: center;
 }
@@ -271,5 +365,26 @@ pre {
     padding: 1rem; 
     border-radius: 10px;
     font-family: sans-serif;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-container {
+    background: var(--fondo-primario);
+    border: 1px solid var(--color-primario);
+    border-radius: 10px;
+    padding: 1rem;
+    width: 300px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 </style>

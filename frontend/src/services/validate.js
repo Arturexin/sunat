@@ -7,6 +7,8 @@ export const expregul = {
     name: /^[A-Za-zÑñÁÉÍÓÚáéíóú'° ]{2,}$/,
     // Apellidos: solo letras y espacios, mínimo 2 caracteres
     last_name: /^[A-Za-zÑñÁÉÍÓÚáéíóú'° ]{2,}$/,
+    // Estilo redes sociales (sin números al inicio, guion bajo opcional)
+    user: /^[a-zA-Z][a-zA-Z0-9_]{2,15}$/,
     // ...otras expresiones...
     ruc: /^\d{11}$/,
     // DNI: exactamente 8 dígitos
@@ -31,9 +33,11 @@ export const expregul = {
     booleano: /^(true|false)$/,
     // Fecha y hora: formato YYYY-MM-DD HH:mm:ss
     dateHour: /^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/,
+    date: /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/,
+    genero: /^[01]$/
 };
 export class validation {
-    static id(id) {
+    static ID(id) {
         id = String(id || '').trim().replace(/[<>"']/g, '');
         if (!expregul.id.test(id)) return {status: 'error', message: 'ID no válido.'};
         return id === '' ? '' : Number(id);
@@ -43,21 +47,46 @@ export class validation {
         if (!expregul.location.test(location)) return {status: 'error', message: 'Nombre de sucursal no válido.'} ;
         return location;
     }
-    static name(name) {
+    static NAME(name) {
         name = String(name || '').trim().replace(/[<>"']/g, '');
         if (!expregul.name.test(name)) return {status: 'error', message: 'Nombre no válido.'} ;
         return name;
     }
-    static last_name(last_name) {
+    static COMPANY_NAME(name) {
+        name = String(name || '').trim().replace(/[<>"']/g, '');
+        if (!expregul.name.test(name)) return {status: 'error', message: 'Nombre no válido.'} ;
+        return name;
+    }
+    static TRADE_NAME(name) {
+        name = String(name || '').trim().replace(/[<>"']/g, '');
+        if (!expregul.name.test(name)) return {status: 'error', message: 'Nombre no válido.'} ;
+        return name;
+    }
+    static LAST_NAME(last_name) {
         last_name = String(last_name || '').trim().replace(/[<>"']/g, '');
         if (!expregul.last_name.test(last_name)) return {status: 'error', message: 'Apellido no válido.'};
         return last_name;
     }
-    static ruc(ruc) {
+    static USER(user) {
+        user = String(user || '').trim().replace(/[<>"']/g, '');
+        if (!expregul.user.test(user)) return {status: 'error', message: 'Usuario no válido.'} ;
+        return user;
+    }
+    static RUC(ruc) {
         ruc = String(ruc || '').trim().replace(/[<>"']/g, '');
         if (!ruc) return ruc;
         if (!expregul.ruc.test(ruc)) return {status: 'error', message: 'RUC no válido.'};
         return ruc;
+    }
+    static NUMBER_DOCUMENT(number_document) {
+        number_document = String(number_document || '').trim().replace(/[<>"']/g, '');
+        if (number_document.length === 8) {
+            if (!expregul.dni.test(number_document)) return {status: 'error', message: 'DNI no válido.'} ;
+        }
+        if (number_document.length === 11) {
+            if (!expregul.ruc.test(number_document)) return {status: 'error', message: 'RUC no válido.'};
+        }
+        return number_document;
     }
     static salary(salary) {
         salary = String(salary || '').trim().replace(/[<>"']/g, '');
@@ -69,7 +98,7 @@ export class validation {
         if (!expregul.dni.test(dni)) return {status: 'error', message: 'DNI no válido.'} ;
         return dni;
     }
-    static email(email) {
+    static EMAIL(email) {
         email = String(email || '').trim().replace(/[<>"']/g, '');
         if (!expregul.email.test(email)) return {status: 'error', message: 'Email no válido.'} ;
         return email;
@@ -79,12 +108,17 @@ export class validation {
         if (!expregul.phone.test(phone)) return {status: 'error', message: 'Teléfono no válido.'} ;
         return phone;
     }
-    static address(address) {
+    static NUMBER_MOVIL(phone) {
+        phone = String(phone || '').trim().replace(/[<>"']/g, '');
+        if (!expregul.phone.test(phone)) return {status: 'error', message: 'Teléfono no válido.'} ;
+        return phone;
+    }
+    static ADDRESS(address) {
         address = String(address || '').trim().replace(/[<>"']/g, '');
         if (!expregul.address.test(address)) return {status: 'error', message: 'Dirección no válida.'} ;
         return address;
     }
-    static amount(amount) {
+    static AMOUNT(amount) {
         amount = String(amount ?? '').trim().replace(/[<>"']/g, '');
         if (!expregul.amount.test(amount)) return {status: 'error', message: 'Cantidad no válida.'} ;
         return Number(amount);
@@ -100,10 +134,30 @@ export class validation {
         if (!expregul.rol.test(rol)) return {status: 'error', message: 'Puesto de trabajo no válido.'};
         return rol;
     }
-    static password(password) {
+    static PASSWORD(password) {
         password = String(password || '').trim();
         if (!expregul.password.test(password)) return {status: 'error', message: 'Contraseña no válida.'} ;
         return password;
+    }
+    static GENERO(genero) {
+        genero = String(genero || '').trim();
+        if (!expregul.genero.test(genero)) return {status: 'error', message: 'Género no válido.'} ;
+        return genero;
+    }
+    static DATE_BIRTH(nacimiento) {
+        nacimiento = String(nacimiento || '').trim();
+        if (!expregul.date.test(nacimiento)) return {status: 'error', message: 'Fecha no válida.'} ;
+        return nacimiento;
+    }
+    static DATE_START(nacimiento) {
+        nacimiento = String(nacimiento || '').trim();
+        if (!expregul.date.test(nacimiento)) return {status: 'error', message: 'Fecha no válida.'} ;
+        return nacimiento;
+    }
+    static DATE_END(nacimiento) {
+        nacimiento = String(nacimiento || '').trim();
+        if (!expregul.date.test(nacimiento)) return {status: 'error', message: 'Fecha no válida.'} ;
+        return nacimiento;
     }
     static booleano(bool) {
         bool = String(bool).trim();

@@ -8,85 +8,76 @@ function excelDateToJSDate(serial) {
     const msPerDay = 86400000;
     return new Date(excelEpoch.getTime() + days * msPerDay);
 }
-function processObject(rows, dbStore) {
-    const rucSet = new Set()
-    const rowSet = new Set()
+export function filtro (row, rowSet) {
+    
+    row['CONDICION DEL CONTRIBUYENTE'] = ""
+    row['ESTADO DEL CONTRIBUYENTE'] = ""
+    row['OBSERVACION CONSULTA CPE'] = ""
+    row['Observación'] = row['Observación'] || ""
+    row['check'] = false
+    row['flat'] = 'T'
+    row['ID_PROJECT'] = row['ID_PROJECT'] || '0'
+    row['ID_LOCATION'] = row['ID_LOCATION'] || '0'
+    row['ID_EMPLOYEE'] = row['ID_EMPLOYEE'] || '0'
 
-    for (const row of rows) {
-        row['CONDICION DEL CONTRIBUYENTE'] = ""
-        row['ESTADO DEL CONTRIBUYENTE'] = ""
-        row['OBSERVACION CONSULTA CPE'] = ""
-        row['id_project'] = dbStore.id_data.id_project
-        row['id_location'] = dbStore.id_data.id_location
-        row['id_employee'] = dbStore.id_data.id_employee
-        row['id_area'] = dbStore.id_data.id_area
+    let fecha = row["FECHA"]
+    const tipo = row["TIPO"]
+    const serie = row["SERIE"]
+    const nroSerie = row["Nº SERIE"]
+    const ruc = String(row["RUC"] || "").trim()
+    const importeNum = parseFloat(row["IMPORTE TOTAL EN SOLES"])
 
-        // Validación de campos
-        let fecha = row["FECHA"]
-        const tipo = row["TIPO"]
-        const serie = row["SERIE"]
-        const nroSerie = row["Nº SERIE"]
-        const ruc = row["RUC"]
-        const importe = row["IMPORTE TOTAL EN SOLES"]
-        console.log(fecha);
-        // Si es un número, convertirlo a fecha
-        if (typeof fecha === "number") {
-            const jsDate = excelDateToJSDate(fecha);
-            row["FECHA"] = formatDate(jsDate, { format: 'AMD_HMS' })
-        } else if (typeof fecha === "string" && fecha.includes("/")) {
-            // Asumimos formato dd/mm/yyyy
-            const [day, month, year] = fecha.split("/");
-            const jsDate = new Date(`${year}-${month}-${day}T00:00:00`);
-            row["FECHA"] = formatDate(jsDate, { format: 'AMD_HMS' });
-        } else {
-            // Si ya es un Date válido
-            row["FECHA"] = formatDate(new Date(fecha), { format: 'AMD_HMS' });
-        }
-
-        const tipoRegex = /^[A-Za-z]+$/
-        const rucRegex = /^\d{11}$/
-        const importeValido = !isNaN(parseFloat(importe))
-
-        const camposValidos =
-            tipoRegex.test(tipo) &&
-            serie &&
-            nroSerie &&
-            rucRegex.test(ruc) &&
-            importeValido
-
-        if (!camposValidos) {
-            dbStore.object_transit.descartados.push(row)
-            continue
-        }
-
-        rucSet.add(ruc)
-
-        const rowSinNumero = { ...row }
-        delete rowSinNumero["Nº"]
-
-        const key = JSON.stringify(rowSinNumero)
-
-        if (rowSet.has(key)) {
-            dbStore.object_transit.duplicados.push(row)
-        } else {
-            rowSet.add(key)
-            dbStore.object_transit.comprobante.push(row)
-        }
+    if (typeof fecha === "number") {
+        row["FECHA"] = formatDate(excelDateToJSDate(fecha), { format: 'AMD_HMS' })
+    } else if (typeof fecha === "string" && fecha.includes("/")) {
+        const [day, month, year] = fecha.split("/")
+        row["FECHA"] = formatDate(new Date(`${year}-${month}-${day}T00:00:00`), { format: 'AMD_HMS' })
+    } else {
+        row["FECHA"] = formatDate(new Date(fecha), { format: 'AMD_HMS' })
     }
 
-    dbStore.object_transit.ruc = Array.from(rucSet)
+    const tipoRegex = /^[A-Za-z]+$/
+    const rucRegex = /^\d{11}$/
+    const serieStr = String(serie || '').trim()
+    const serieValid = serieStr.length >= 3 && serieStr.length <= 4 && /\d$/.test(serieStr)
+
+    if (!tipoRegex.test(tipo)) row['flat'] = 'E', row['Observación'] += 'Tipo inválido. '
+    if (!serieValid) row['flat'] = 'E', row['Observación'] += 'Serie inválida. '
+    if (Number(nroSerie) <= 0) row['flat'] = 'E', row['Observación'] += 'Número de serie inválido. '
+    if (!rucRegex.test(ruc)) row['flat'] = 'E', row['Observación'] += 'RUC inválido. '
+    if (isNaN(importeNum) || importeNum <= 0) row['flat'] = 'E', row['Observación'] += 'Importe inválido. '
+
+    if (row['flat'] !== 'E') {
+        const rowSinNumero = { ...row }
+        delete rowSinNumero["Nº"]
+        const key = JSON.stringify(rowSinNumero)
+
+        if (rowSet.has(key)) row['flat'] = 'R'
+        else rowSet.add(key), row['flat'] = 'T'
+    }
+    return row
 }
 // Leer archivo y convertir a JSON
 export function leerArchivo(dbStore, modalMessage) {
-    if(dbStore.id_data.id_project === '0' || 
-        dbStore.id_data.id_location === '0' || 
-        dbStore.id_data.id_employee === '0') {
-        modalMessage(true, `Por favor, seleccione un proyecto, locación y colaborador.`, 'error')
-        return
-    }
+    dbStore.array_comprobantes = []
+
     modalMessage(true, `Procesando archivos .xlsx.`, 'info')
+    // Validación: asegurar que el archivo sea un Blob/File válido
+    let xlsxFile = dbStore.files.xlsx;
+    if (Array.isArray(xlsxFile)) {
+        // Si por error llegó como array, tomar el primero
+        xlsxFile = xlsxFile[0];
+    }
+    if (!xlsxFile || !(xlsxFile instanceof Blob)) {
+        modalMessage(true, `Seleccione un archivo .xlsx válido antes de procesar.`, 'error')
+        return;
+    }
     const reader = new FileReader()
 
+    reader.onerror = (e) => {
+        console.error('FileReader error:', e)
+        modalMessage(true, `No se pudo leer el archivo .xlsx. Verifique el archivo.`, 'error')
+    }
     reader.onload = (e) => {
         const data = new Uint8Array(e.target.result)
         const workbook = XLSX.read(data, { type: 'array' })
@@ -94,19 +85,25 @@ export function leerArchivo(dbStore, modalMessage) {
         const firstSheet = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[firstSheet]
         const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
+        const rowSet = new Set()
 
-        processObject(rows, dbStore)
+        const parsedRows = rows.map(row => filtro(row, rowSet))
+        dbStore.array_comprobantes = parsedRows
 
-        if(dbStore.object_transit.comprobante.length > 0 || 
-            dbStore.object_transit.duplicados.length > 0 || 
-            dbStore.object_transit.descartados.length > 0){
+        if(dbStore.array_comprobantes.length > 0){
             modalMessage(true, `Comprobantes extraidos del archivo .xlsx.`, 'success')
             dbStore.btnDisabled(2, true);
         } else {
             modalMessage(true, `No se encontraron comprobantes en el archivo .xlsx.`, 'error')
         }
     }
-    reader.readAsArrayBuffer(dbStore.files.xlsx)
+    try {
+        reader.readAsArrayBuffer(xlsxFile)
+    } catch (err) {
+        console.error('readAsArrayBuffer failed:', err)
+        modalMessage(true, `Error al iniciar la lectura del archivo .xlsx.`, 'error')
+        return
+    }
     dbStore.files.xlsx = null
 }
 
